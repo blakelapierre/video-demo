@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<!-- saved from url=(0046)http://stemkoski.github.io/Three.js/Video.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>Video Texture (Three.js)</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel="stylesheet" href="http://stemkoski.github.io/Three.js/css/base.css">
+</head>
+<body style="">
+
+<script src="./index_files/Three.js"></script>
+<script src="./index_files/Detector.js"></script>
+<script src="./index_files/Stats.js"></script>
+<script src="./index_files/OrbitControls.js"></script>
+<script src="./index_files/THREEx.KeyboardState.js"></script>
+<script src="./index_files/THREEx.FullScreen.js"></script>
+<script src="./index_files/THREEx.WindowResize.js"></script>
+
+<!-- jQuery code to display an information button and box when clicked. -->
+<script src="./index_files/jquery-1.9.1.js"></script>
+<script src="./index_files/jquery-ui.js"></script>
+<link rel="stylesheet" href="http://stemkoski.github.io/Three.js/css/jquery-ui.css">
+<link rel="stylesheet" href="http://stemkoski.github.io/Three.js/css/info.css">
+<script src="./index_files/info.js"></script>
+
+<div id="ThreeJS" style="position: absolute; left:0px; top:0px"></div>
+
+<script id="vertexShader" type="x-shader/x-vertex">
+uniform sampler2D texture;
+varying vec2 vUv;
+
+uniform float delta;
+uniform float scale;
+uniform float alpha;
+
+vec3 rgb2hsv(vec4 c)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = c.g < c.b ? vec4(c.bg, K.wz) : vec4(c.gb, K.xy);
+    vec4 q = c.r < p.x ? vec4(p.xyw, c.r) : vec4(c.r, p.yzx);
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+void main()
+{
+    vUv = uv;
+
+    vec2 position2 = vUv;
+    vec3 color = rgb2hsv(texture2D(texture, position2));
+
+    vec3 p = position;
+    p.z += -(0.5 - color[2]) * 60.0;
+    vec4 mvPosition = modelViewMatrix * vec4(scale * p, 1.0 );
+    gl_Position = projectionMatrix * mvPosition;
+}
+</script>
+
+<script id="fragmentShader" type="x-shader/x-fragment">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+uniform sampler2D texture;
+varying vec2 vUv;      
+
+void main(void)
+{
+    vec2 position = vUv;
+    gl_FragColor = texture2D(texture, position);
+}
+</script>
+
+<script>
+/*
+	Three.js "tutorials by example"
+	Author: Lee Stemkoski
+	Date: July 2013 (three.js v59dev)
+*/
+	
+// MAIN
+
+// standard global variables
+var container, scene, camera, renderer, controls, stats;
+var keyboard = new THREEx.KeyboardState();
+
+// custom global variables
+var video, videoImage, videoImageContext, videoTexture;
+
+init();
+animate();
+
+// FUNCTIONS 		
+function init() 
+{
+	var screenWidth = window.innerWidth,
+		screenHeight = window.innerHeight,
+		viewAngle = 45.0,
+		aspectRatio = screenWidth / screenHeight,
+		near = 0.1,
+		far = 20000;
+
+	// SCENE
+	scene = new THREE.Scene();
+	
+	camera = new THREE.PerspectiveCamera(viewAngle, aspectRatio, near, far);
+	scene.add(camera);
+
+	camera.position.set(0,150,400);
+	camera.lookAt(scene.position);	
+
+	// RENDERER
+	if ( Detector.webgl )
+		renderer = new THREE.WebGLRenderer( {antialias:true} );
+	else
+		renderer = new THREE.CanvasRenderer(); 
+	renderer.setSize(screenWidth, screenHeight);
+	container = document.getElementById( 'ThreeJS' );
+	container.appendChild( renderer.domElement );
+	// CONTROLS
+	controls = new THREE.OrbitControls( camera, renderer.domElement );
+	// EVENTS
+	THREEx.WindowResize(renderer, camera);
+	THREEx.FullScreen.bindKey({ charCode : 'm'.charCodeAt(0) });
+	// STATS
+	stats = new Stats();
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.bottom = '0px';
+	stats.domElement.style.zIndex = 100;
+	container.appendChild( stats.domElement );
+
+	
+	
+	///////////
+	// VIDEO //
+	///////////
+		function buildGetWebrtcCanvas(){
+			var canvasW	= 256;
+			var canvas	= document.createElement('canvas');
+			canvas.width	= canvas.height	= canvasW;
+			var ctx		= canvas.getContext('2d'); 
+
+			ctx.fillStyle	= "rgba(255, 128, 128, 1)";
+			ctx.font	= "32px Arial";
+			
+			ctx.save()
+				var text	= "No WebRTC";
+				var fontH	= 32;
+				var len		= ctx.measureText(text);
+				ctx.translate((canvas.width - len.width)/2, 0);  
+				ctx.fillText(text, 0, fontH*2.5);  
+			ctx.restore();
+			
+			ctx.save()
+				var text	= "Available";
+				var fontH	= 32;
+				var len		= ctx.measureText(text);  
+				ctx.translate((canvas.width - len.width)/2, 0);  
+				ctx.fillText(text, 0, fontH*3.5);
+			ctx.restore();
+			
+			ctx.fillStyle	= "rgba(128, 255, 128, 1)";
+			ctx.font	= "20px Arial";
+			
+			ctx.save()
+				var text	= "see top of the page";
+				var fontH	= 32;
+				var len		= ctx.measureText(text);  
+				ctx.translate((canvas.width - len.width)/2, 0);  
+				ctx.fillText(text, 0, fontH*5);
+			ctx.restore();
+			
+			ctx.save()
+				var text	= "'run WebRTC demos'";
+				var fontH	= 32;
+				var len		= ctx.measureText(text);  
+				ctx.translate((canvas.width - len.width)/2, 0);  
+				ctx.fillText(text, 0, fontH*6);
+			ctx.restore();
+
+			return canvas;
+		}
+
+	video		= document.createElement('video');
+	video.width	= 320;
+	video.height	= 240;
+	video.autoplay	= true;
+	video.loop	= true;
+	video.crossorigin = "anonymous";
+
+	video.src = "http://localhost:7331/video/2013-12-23.mp4";
+					video.load();
+					video.play();
+					videoTexture = new THREE.Texture(video);
+					videoTexture.needsUpdate = true;
+
+	// var hasUserMedia = navigator.webkitGetUserMedia ? true : false;
+	// console.log("UserMedia is detected", hasUserMedia);
+	// if( hasUserMedia ){
+	// 	MediaStreamTrack.getSources(function(sources) {
+	// 		navigator.webkitGetUserMedia({video: {
+	// 			optional: [{sourceId: sources[3].id}]
+	// 		}},
+	// 			function(stream){
+	// 				video.src	= webkitURL.createObjectURL(stream);
+	// 				console.log("pseudo object URL", video.src);
+	// 			}, function(error){
+	// 				alert('you got no WebRTC webcam');
+	// 				video.src	= "videos/sintel.ogv";
+	// 			}
+	// 		);
+	// 	});
+		
+	// 	videoTexture	= new THREE.Texture( video );
+	// }else{
+	// 	videoTexture	= new THREE.Texture( buildGetWebrtcCanvas() );				
+	// 	videoTexture.needsUpdate = true;
+	// }
+
+
+
+	
+	// create the video element
+	// video = document.createElement( 'video' );
+	// // video.id = 'video';
+	// // video.type = ' video/ogg; codecs="theora, vorbis" ';
+	// video.src = "/video/stream_server/video.mp4";
+	// video.load(); // must call after setting/changing source
+	// video.play();
+	
+	// // alternative method -- 
+	// // create DIV in HTML:
+	// // <video id="myVideo" autoplay style="display:none">
+	// //		<source src="videos/sintel.ogv" type='video/ogg; codecs="theora, vorbis"'>
+	// // </video>
+	// // and set JS variable:
+	// // video = document.getElementById( 'myVideo' );
+	
+	// videoImage = document.createElement( 'canvas' );
+	// videoImage.width = 1366;
+	// videoImage.height = 768;
+
+	// videoImageContext = videoImage.getContext( '2d' );
+	// // background color if no video present
+	// videoImageContext.fillStyle = '#000000';
+	// videoImageContext.fillRect( 0, 0, videoImage.width, videoImage.height );
+
+	// videoTexture = new THREE.Texture( videoImage );
+	//videoTexture.minFilter = THREE.LinearFilter;
+	//videoTexture.magFilter = THREE.LinearFilter;
+
+	var vertShader = document.getElementById('vertexShader').innerHTML;
+    var fragShader = document.getElementById('fragmentShader').innerHTML;
+
+    var uniforms = {
+    	delta: {type: 'f', value: 0.0},
+    	scale: {type: 'f', value: 1.0},
+    	alpha: {type: 'f', value: 1.0},
+        texture: {type: 't', value: videoTexture}
+    };
+
+    var movieMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertShader,
+        fragmentShader: fragShader
+    });
+	
+	//var movieMaterial = new THREE.MeshBasicMaterial( { map: videoTexture, overdraw: true, side:THREE.DoubleSide } );
+	// the geometry on which the movie will be displayed;
+	// 		movie image will be scaled to fit these dimensions.
+	var movieGeometry = new THREE.PlaneGeometry( 240, 100, 240, 100 );
+	var movieScreen = new THREE.Mesh( movieGeometry, movieMaterial );
+	movieScreen.position.set(0,0,0);
+	scene.add(movieScreen);
+	
+	camera.position.set(0,0,400);
+	camera.lookAt(movieScreen.position);
+				
+	
+}
+
+function animate() 
+{
+    requestAnimationFrame( animate );
+	render();		
+	update();
+}
+
+function update()
+{
+	if ( keyboard.pressed("p") )
+		video.play();
+		
+	if ( keyboard.pressed("space") )
+		video.pause();
+
+	if ( keyboard.pressed("s") ) // stop video
+	{
+		video.pause();
+		video.currentTime = 0;
+	}
+	
+	if ( keyboard.pressed("r") ) // rewind video
+		video.currentTime = 0;
+	
+	controls.update();
+	stats.update();
+}
+
+function render() 
+{	
+	if ( video.readyState === video.HAVE_ENOUGH_DATA ) 
+	{
+		//videoImageContext.drawImage(video, 0, 0);
+		if ( videoTexture ) 
+			videoTexture.needsUpdate = true;
+	}
+
+	renderer.render( scene, camera );
+}
+
+</script>
+
+
+
+<div class="ui-dialog ui-widget ui-widget-content ui-corner-all ui-front ui-draggable ui-resizable" tabindex="-1" role="dialog" aria-describedby="infoBox" aria-labelledby="ui-id-1" style="display: none; position: absolute;"><div class="ui-dialog-titlebar ui-widget-header ui-corner-all ui-helper-clearfix"><span id="ui-id-1" class="ui-dialog-title">Demo Information</span><button class="ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only ui-dialog-titlebar-close" role="button" aria-disabled="false" title="close"><span class="ui-button-icon-primary ui-icon ui-icon-closethick"></span><span class="ui-button-text">close</span></button></div><div id="infoBox" class="ui-dialog-content ui-widget-content" style="background-color: rgba(255, 255, 255, 0.498039); background-position: initial initial; background-repeat: initial initial;">
+Demo controls:
+<ul>
+<li> P: play video
+</li><li> Space: pause video
+</li><li> S: stop video
+</li><li> R: rewind to beginning
+</li></ul>
+This three.js demo is part of a collection at
+<a href="http://stemkoski.github.io/Three.js/">http://stemkoski.github.io/Three.js/</a>
+</div><div class="ui-resizable-handle ui-resizable-n" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-w" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-sw" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-ne" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-nw" style="z-index: 90;"></div></div></body></html>
